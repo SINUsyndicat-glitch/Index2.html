@@ -16,6 +16,10 @@
         }
 
         body {
+            <!-- ملفات الصوت الخلفية للعبة -->
+<audio id="tickSound" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav" preload="auto"></audio>
+<audio id="winSound" src="https://assets.mixkit.co/active_storage/sfx/1435/1435-84.wav" preload="auto"></audio>
+
             margin: 0;
             padding: 0;
             background-color: var(--bg-dark);
@@ -280,41 +284,51 @@
 
     // ميكانيكية حساب زاوية الدوران وتحديد النتيجة النهائية بصرياً
     function executeVisualSpin() {
-        isSpinning = true;
-        document.getElementById("spinBtnBottom").disabled = true;
-        document.getElementById("statusLabel").innerText = "🔥 العجلة تدور الآن! حظاً موفقاً...";
+    isSpinning = true;
+    document.getElementById("spinBtnBottom").disabled = true;
+    document.getElementById("statusLabel").innerText = "🔥 العجلة تدور الآن! حظاً موفقاً...";
 
-        const numSegments = segments.length;
-        // توليد نتيجة عشوائية من الأقسام المتاحة
-        const targetSegmentIndex = Math.floor(Math.random() * numSegments); 
+    // [جديد] تشغيل صوت التكتكة وضبطه ليتكرر أثناء الدوران
+    const tickAudio = document.getElementById("tickSound");
+    const winAudio = document.getElementById("winSound");
+    tickAudio.loop = true;
+    tickAudio.currentTime = 0;
+    tickAudio.play().catch(e => console.log("الصوت يحتاج تفاعل أولاً"));
+
+    const numSegments = segments.length;
+    const targetSegmentIndex = Math.floor(Math.random() * numSegments); 
+    const degreesPerSegment = 360 / numSegments;
+    const baseRotations = 5 * 360; 
+
+    // الحساب الرياضي الدقيق لتقف الإبرة في المنتصف تماماً
+    const targetDegrees = baseRotations + (360 - (targetSegmentIndex * degreesPerSegment)) - 90 - (degreesPerSegment / 2);
+
+    const wheelOuter = document.getElementById("wheelOuter");
+    wheelOuter.style.transform = `rotate(${targetDegrees}deg)`;
+
+    // الانتظار 5 ثوانٍ حتى تقف العجلة تماماً
+    setTimeout(() => {
+        // [جديد] إيقاف صوت التكتكة وتشغيل نغمة الفوز فوراً
+        tickAudio.pause();
+        winAudio.currentTime = 0;
+        winAudio.play().catch(e => console.log("فشل تشغيل نغمة الفوز"));
+
+        const finalResult = segments[targetSegmentIndex];
+        document.getElementById("statusLabel").innerText = `🎉 النتيجة: ${finalResult}`;
+        alert(`🎉 النتيجة النهائية: ${finalResult}`);
         
-        // حساب الدرجات اللازمة لتدور العجلة 5 دورات كاملة ثم تقف عند القطاع المحدد بدقة
-        const degreesPerSegment = 360 / numSegments;
-        const baseRotations = 5 * 360; // 5 دورات كاملة للحماس
-        
-        // تعديل الحساب ليتوافق مع السهم العلوي (المؤشر عند زاوية 270 درجة برمجياً)
-        const targetDegrees = baseRotations + (360 - (targetSegmentIndex * degreesPerSegment)) - 90;
-
-        const wheelOuter = document.getElementById("wheelOuter");
-        wheelOuter.style.transform = `rotate(${targetDegrees}deg)`;
-
-        // الانتظار 5 ثوانٍ (نفس مدة الـ transition في الـ CSS) لتقف العجلة تماماً ونظهر النتيجة
+        isSpinning = false;
+        document.getElementById("spinBtnBottom").disabled = false;
+        wheelOuter.style.transition = "none";
+        wheelOuter.style.transform = `rotate(${targetDegrees % 360}deg)`;
         setTimeout(() => {
-            const finalResult = segments[targetSegmentIndex];
-            document.getElementById("statusLabel").innerText = `🎉 النتيجة: ${finalResult}`;
-            alert(`🎉 النتيجة النهائية: ${finalResult}`);
-            
-            // إعادة التهيئة للمرة القادمة
-            isSpinning = false;
-            document.getElementById("spinBtnBottom").disabled = false;
-            wheelOuter.style.transition = "none";
-            wheelOuter.style.transform = `rotate(${targetDegrees % 360}deg)`;
-            setTimeout(() => {
-                wheelOuter.style.transition = "transform 5s cubic-bezier(0.1, 0.8, 0.1, 1)";
-            }, 50);
+            wheelOuter.style.transition = "transform 5s cubic-bezier(0.1, 0.8, 0.1, 1)";
+        }, 50);
 
-        }, 5000);
-    }
+    }, 5000);
+}
+
+    
 </script>
 
 </body>
