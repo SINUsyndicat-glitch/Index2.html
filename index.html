@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سنديكات $SINU - عجلة الحظ</title>
+    <!-- استيراد مكتبة Ethers.js للربط بالمحفظة -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #ff0055;
+            --bg-dark: #0a0a0c;
+            --panel-bg: #141419;
+            --text-light: #ffffff;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* الهيدر وأزرار التحكم */
+        header {
+            width: 100%;
+            padding: 20px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            background-color: var(--panel-bg);
+            border-bottom: 2px solid #222;
+            box-sizing: border-box;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, var(--primary-color), #bc003f);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255, 0, 85, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 0, 85, 0.6);
+        }
+
+        .btn:disabled {
+            background: #444;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        /* حاوية اللعبة الرئيسية */
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 40px;
+            position: relative;
+        }
+
+        /* مؤشر العجلة العلوي (السهم) */
+        .pointer {
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-top: 30px solid var(--primary-color);
+            position: absolute;
+            top: -15px;
+            z-index: 10;
+            filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.5));
+        }
+
+        /* حاوية العجلة وإطارها المضيء */
+        .wheel-box {
+            width: 360px;
+            height: 360px;
+            border-radius: 50%;
+            border: 8px solid #1e1e24;
+            box-shadow: 0 0 30px rgba(255, 0, 85, 0.2), inset 0 0 20px rgba(0,0,0,0.8);
+            position: relative;
+            overflow: hidden;
+            transition: transform 5s cubic-bezier(0.1, 0.8, 0.1, 1); /* حركة دوران ناعمة وحقيقية */
+        }
+
+        /* رسم العجلة المقسمة عبر الـ Canvas */
+        #wheelCanvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+        }
+
+        /* الزر المركزي في وسط العجلة */
+        .center-spin-btn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%)\;
+            width: 70px;
+            height: 70px;
+            background: #fff;
+            color: #000;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            border: 4px solid var(--panel-bg);
+            cursor: pointer;
+            user-select: none;
+            z-index: 5;
+        }
+
+        /* قسم لوحة البيانات والتنبيهات */
+        .status-panel {
+            margin-top: 30px;
+            background-color: var(--panel-bg);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            min-width: 300px;
+            border: 1px solid #222;
+        }
+
+        .status-text {
+            font-size: 18px;
+            color: #ccc;
+            margin-bottom: 10px;
+        }
+
+        .wallet-text {
+            font-size: 14px;
+            color: #888;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h2>🔥 سنديكات $SINU اللامركزية</h2>
+        </div>
+        <button class="btn" id="connectBtn" onclick="connectWallet()">ربط المحفظة</button>
+    </header>
+
+    <div class="game-container">
+        <!-- السهم الذي يشير للجائزة -->
+        <div class="pointer"></div>
+        
+        <!-- العجلة المضيئة والدوارة -->
+        <div class="wheel-box" id="wheelOuter">
+            <canvas id="wheelCanvas" width="360" height="360"></canvas>
+            <div class="center-spin-btn" id="spinBtnCenter" onclick="spinTheWheel()">SPIN</div>
+        </div>
+    </div>
+
+    <div class="status-panel">
+        <div class="status-text" id="statusLabel">قم بربط محفظتك لبدء التحدي ودوران العجلة!</div>
+        <div class="wallet-text" id="walletLabel">المحفظة غير متصلة</div>
+        <button class="btn" id="spinBtnBottom" onclick="spinTheWheel()" style="margin-top:15px;" disabled>دوران العجلة (500 $SINU)</button>
+    </div>
+
+<script>
+    // --- إعدادات البلوكشين الذكية للموقع ---
+    const contractAddress = "0x3E71427c4F4c3aE6DBA472Ccb17076E2148A1231"; 
+
+    const contractABI = [
+        {"inputs":[{"internalType":"address","name":"_sinuTokenAddress","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},
+        {"inputs":[],"name":"executePveAssassination","outputs":[],"stateMutability":"nonpayable","type":"function"}
+    ];
+
+    let provider, signer, gameContract;
+    let isSpinning = false;
+
+    // أقسام العجلة وجوائزها (مرتبة بشكل دائري)
+    const segments = [
+        "خسارة ❌", "ضعف الجائزة 💰", "حاول مجدداً 🔄", "ضربة السنديكات ⚔️",
+        "خسارة ❌", "جائزة كبرى 👑", "حاول مجدداً 🔄", "كاش باك 50% 💵"
+    ];
+    const colors = ["#1a1a24", "#ff0055", "#2a2a35", "#ffcc00", "#1a1a24", "#00ffcc", "#2a2a35", "#ff6600"];
+
+    // رسم العجلة الاحترافية فور تحميل الصفحة
+    const canvas = document.getElementById("wheelCanvas");
+    const ctx = canvas.getContext("2d");
+    drawWheel();
+
+    function drawWheel() {
+        const numSegments = segments.length;
+        const anglePerSegment = (2 * Math.PI) / numSegments;
+        ctx.clearRect(0, 0, 360, 360);
+
+        for (let i = 0; i < numSegments; i++) {
+            const angle = i * anglePerSegment;
+            
+            // رسم القطاع الدائري
+            ctx.beginPath();
+            ctx.fillStyle = colors[i];
+            ctx.moveTo(180, 180);
+            ctx.arc(180, 180, 180, angle, angle + anglePerSegment);
+            ctx.lineTo(180, 180);
+            ctx.fill();
+            ctx.stroke();
+
+            // كتابة نصوص الجوائز بشكل مائل متناسق داخل القطاع
+            ctx.save();
+            ctx.translate(180, 180);
+            ctx.rotate(angle + anglePerSegment / 2);
+            ctx.textAlign = "right";
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 14px 'Segoe UI'";
+            ctx.fillText(segments[i], 160, 5);
+            ctx.restore();
+        }
+    }
+
+    // --- دالة ربط المحفظة الحقيقية ---
+    async function connectWallet() {
+        if (typeof window.ethereum !== 'undefined') {
+            try {
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                await provider.send("eth_requestAccounts", []);
+                signer = provider.getSigner();
+                const walletAddress = await signer.getAddress();
+                
+                gameContract = new ethers.Contract(contractAddress, contractABI, signer);
+
+                document.getElementById("connectBtn").innerText = "متصل ✅";
+                document.getElementById("walletLabel").innerText = "المحفظة: " + walletAddress;
+                document.getElementById("statusLabel").innerText = "تم الربط الحقيقي! اضغط SPIN لبدء المعاملة.";
+                document.getElementById("spinBtnBottom").disabled = false;
+            } catch (error) {
+                console.error(error);
+                alert("فشل ربط المحفظة، يرجى المحاولة مرة أخرى.");
+            }
+        } else {
+            alert("يرجى فتح الموقع من داخل متصفح محفظة MetaMask أو Coinbase الذكية!");
+        }
+    }
+
+    // --- دالة بدء دفع الـ 500 $SINU ودوران العجلة الحماسي ---
+    async function spinTheWheel() {
+        if (!gameContract || isSpinning) return;
+
+        try {
+            document.getElementById("statusLabel").innerText = "يرجى قبول المعاملة في محفظتك لدفع 500 $SINU والغاز...";
+            
+            // استدعاء دالة العقد التي نجحت معك سابقاً
+            const tx = await gameContract.executePveAssassination();
+            
+            document.getElementById("statusLabel").innerText = "جاري تأكيد معاملتك على شبكة Base... انتظر قليلاً";
+            await tx.wait(); // انتظار تأكيد البلوكشين بنجاح
+
+            // تشغيل دوران العجلة البصري بعد نجاح المعاملة خصماً من الرصيد
+            executeVisualSpin();
+
+        } catch (error) {
+            console.error(error);
+            document.getElementById("statusLabel").innerText = "المعاملة فشلت أو تم إلغاؤها.";
+            alert("فشلت المعاملة، تأكد من وجود رصيد كافٍ للغاز وللتوكن!");
+        }
+    }
+
+    // ميكانيكية حساب زاوية الدوران وتحديد النتيجة النهائية بصرياً
+    function executeVisualSpin() {
+        isSpinning = true;
+        document.getElementById("spinBtnBottom").disabled = true;
+        document.getElementById("statusLabel").innerText = "🔥 العجلة تدور الآن! حظاً موفقاً...";
+
+        const numSegments = segments.length;
+        // توليد نتيجة عشوائية من الأقسام المتاحة
+        const targetSegmentIndex = Math.floor(Math.random() * numSegments); 
+        
+        // حساب الدرجات اللازمة لتدور العجلة 5 دورات كاملة ثم تقف عند القطاع المحدد بدقة
+        const degreesPerSegment = 360 / numSegments;
+        const baseRotations = 5 * 360; // 5 دورات كاملة للحماس
+        
+        // تعديل الحساب ليتوافق مع السهم العلوي (المؤشر عند زاوية 270 درجة برمجياً)
+        const targetDegrees = baseRotations + (360 - (targetSegmentIndex * degreesPerSegment)) - 90;
+
+        const wheelOuter = document.getElementById("wheelOuter");
+        wheelOuter.style.transform = `rotate(${targetDegrees}deg)`;
+
+        // الانتظار 5 ثوانٍ (نفس مدة الـ transition في الـ CSS) لتقف العجلة تماماً ونظهر النتيجة
+        setTimeout(() => {
+            const finalResult = segments[targetSegmentIndex];
+            document.getElementById("statusLabel").innerText = `🎉 النتيجة: ${finalResult}`;
+            alert(`🎉 النتيجة النهائية: ${finalResult}`);
+            
+            // إعادة التهيئة للمرة القادمة
+            isSpinning = false;
+            document.getElementById("spinBtnBottom").disabled = false;
+            wheelOuter.style.transition = "none";
+            wheelOuter.style.transform = `rotate(${targetDegrees % 360}deg)`;
+            setTimeout(() => {
+                wheelOuter.style.transition = "transform 5s cubic-bezier(0.1, 0.8, 0.1, 1)";
+            }, 50);
+
+        }, 5000);
+    }
+</script>
+
+</body>
+</html>
